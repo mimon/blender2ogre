@@ -102,7 +102,7 @@ def dot_scene(path, scene_name=None):
     # Find merge groups
     mgroups = []
     mobjects = []
-    for ob in objects:
+    for ob in bpy.context.scene.objects:
         group = get_merge_group( ob )
         if group:
             for member in group.objects:
