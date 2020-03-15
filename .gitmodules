@@ -1,0 +1,3 @@
+[submodule "io_ogre/docopt"]
+	path = io_ogre/docopt
+	url = git@github.com:docopt/docopt.git
