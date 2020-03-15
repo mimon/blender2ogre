@@ -1,39 +1,86 @@
+"""Naval Fate.
+
+Usage:
+    naval_fate.py mesh <blendfile> [options]
+    naval_fate.py scene
+
+Options:
+    -h --help               Show this screen.
+    -c --collection=<name>     Filter collection.
+    -o --outdir=<dir>
+    -n --outname=<name>        Filename
+
+"""
 import bpy
 import sys
 import os
 import re
+
 from os.path import join, split
 
-def export(object_names):
-    for name in object_names:
-        index = bpy.data.objects.find(name)
-        if index != -1:
-            obj = bpy.data.objects[index]
-            obj.data.update()
-            obj.data.calc_loop_triangles()
-            export_mesh(obj, '/tmp')
 
+def is_in_collection(collections, prefix):
+    return any([x.name.startswith(prefix) for x in collections])
 
 if __name__ == "__main__":
-    idx = sys.argv.index('--')
-    argv = sys.argv[idx+2:]
-    path = sys.argv[idx+1]
+    import io_ogre.docopt.docopt
+    try:
+        idx = sys.argv.index('--')
+        argv = sys.argv[idx+1:]
+    except ValueError:
+        argv = None
+    print(argv)
 
-    # cut off file name
-    io_ogre = os.path.split(__file__)[0]
-    # cut off io_ogre dir
-    io_ogre = os.path.split(io_ogre)[0]
-    sys.path.append(io_ogre)
+    cliargs = io_ogre.docopt.docopt.docopt(__doc__, argv, version='Naval Fate 2.0')
 
-    os.makedirs(path, exist_ok=True, mode=0o775)
 
     from io_ogre import config
     from io_ogre.ogre.scene import dot_scene
-    from io_ogre.ogre.mesh  import dot_mesh
-    from io_ogre.ogre.skeleton import dot_skeleton
+    from io_ogre.ogre2 import texture
+    from io_ogre.ogre import mesh
 
-    match = re.compile("scene (.*)").match(argv[0])
-    if match:
-        scene_name = match.group(1)
-        dot_scene(path, scene_name=scene_name)
+    bpy.ops.wm.open_mainfile(filepath=cliargs['<blendfile>'])
+
+    dir = os.path.dirname(os.path.realpath(__file__))
+    path = cliargs['--outdir'] if cliargs['--outdir'] else dir 
+    name = cliargs['--outname'] if cliargs['--outname'] else None
+
+    print(cliargs)
+    if 'mesh' in cliargs:
+        objs = [x for x in bpy.context.scene.objects if x.type == 'MESH']
+        if cliargs['--collection']:
+            objs = [x for x in objs if is_in_collection(x.users_collection, cliargs['--collection'])]
+
+            if len(objs) == 0:
+                print(f"No mesh(es) found in collection '{cliargs['--collection']}'")
+
+        for ob in objs:
+            mesh.dot_mesh(
+                ob,
+                path,
+                force_name=name
+            )
+
+        for obj in objs:
+            texture.export_textures(obj, path)
+
+    # path = sys.argv[idx+1]
+
+    # # cut off file name
+    # io_ogre = os.path.split(__file__)[0]
+    # # cut off io_ogre dir
+    # io_ogre = os.path.split(io_ogre)[0]
+    # sys.path.append(io_ogre)
+
+    # os.makedirs(path, exist_ok=True, mode=0o775)
+
+    # from io_ogre import config
+    # from io_ogre.ogre.scene import dot_scene
+    # from io_ogre.ogre.mesh  import dot_mesh
+    # from io_ogre.ogre.skeleton import dot_skeleton
+
+    # match = re.compile("scene (.*)").match(argv[0])
+    # if match:
+    #     scene_name = match.group(1)
+    #     dot_scene(path, scene_name=scene_name)
 
