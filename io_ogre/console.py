@@ -9,7 +9,7 @@ Options:
     -c --collection=<name>     Filter collection.
     -o --outdir=<dir>
     -n --outname=<name>        Filename
-
+    -x --swap-axes=<axes>      Convert from Blender's axes [default: xz-y]
 """
 import bpy
 import sys
@@ -37,7 +37,10 @@ if __name__ == "__main__":
     from io_ogre import config
     from io_ogre.ogre.scene import dot_scene
     from io_ogre.ogre2 import texture
-    from io_ogre.ogre import mesh
+    from io_ogre.ogre import mesh, skeleton
+
+    # Update config
+    config.CONFIG['SWAP_AXIS'] = cliargs['--swap-axes']
 
     bpy.ops.wm.open_mainfile(filepath=cliargs['<blendfile>'])
 
