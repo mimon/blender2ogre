@@ -49,23 +49,28 @@ if __name__ == "__main__":
     name = cliargs['--outname'] if cliargs['--outname'] else None
 
     print(cliargs)
-    if 'mesh' in cliargs:
-        objs = [x for x in bpy.context.scene.objects if x.type == 'MESH']
-        if cliargs['--collection']:
-            objs = [x for x in objs if is_in_collection(x.users_collection, cliargs['--collection'])]
+    objs = [x for x in bpy.context.scene.objects if x.type == 'MESH']
+    if cliargs['--collection']:
+        objs = [x for x in objs if is_in_collection(x.users_collection, cliargs['--collection'])]
 
-            if len(objs) == 0:
-                print(f"No mesh(es) found in collection '{cliargs['--collection']}'")
+        if len(objs) == 0:
+            print(f"No mesh(es) found in collection '{cliargs['--collection']}'")
 
         for ob in objs:
-            mesh.dot_mesh(
-                ob,
-                path,
-                force_name=name
-            )
+            if 'mesh' in cliargs:
+                mesh.dot_mesh(
+                    ob,
+                    path,
+                    force_name=name
+                )
+                skeleton.dot_skeleton(
+                    ob,
+                    path,
+                    force_name=name
+                )
 
-        for obj in objs:
-            texture.export_textures(obj, path)
+                for obj in objs:
+                    texture.export_textures(obj, path)
 
     # path = sys.argv[idx+1]
 
