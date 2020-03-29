@@ -544,7 +544,7 @@ def dot_mesh( ob, path, force_name=None, ignore_shape_animation=False, normals=T
             badverts = 0
             for vidx, v in enumerate(_remap_verts_):
                 check = 0
-                for vgroup in v.collections:
+                for vgroup in v.groups:
                     if vgroup.weight > config.get('TRIM_BONE_WEIGHTS'):
                         groupIndex = vgroup.group
                         if groupIndex < len(copy.vertex_groups):
