@@ -9,7 +9,7 @@ Options:
     -c --collection=<name>     Filter collection.
     -o --outdir=<dir>
     -n --outname=<name>        Filename
-    -x --swap-axes=<axes>      Convert from Blender's axes [default: xz-y]
+    -x --swap-axes=<axes>      Convert from Blender's axes [default: xyz]
 """
 import bpy
 import sys
