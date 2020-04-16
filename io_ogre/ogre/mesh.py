@@ -8,6 +8,8 @@ from .. import util
 from .material import *
 from .skeleton import Skeleton
 
+log = logging.getLogger(__name__)
+
 class VertexColorLookup:
     def __init__(self, mesh):
         self.mesh = mesh
@@ -46,6 +48,104 @@ class VertexColorLookup:
         if self.__alphas:
             color[3] = mathutils.Vector(self.__alphas[item]).length
         return color
+
+def write_vector3(doc, name, vec3):
+    x, y, z = vec3
+    doc.leaf_tag(name, {
+            'x' : '%6f' % x,
+            'y' : '%6f' % y,
+            'z' : '%6f' % z
+    })
+
+def write_submeshes(doc, meshes):
+    doc.start_tag('submeshes', {})
+    for mesh in meshes:
+        log.info(f"Tris: {len(mesh.polygons)}")
+        doc.start_tag('submesh', {})
+        doc.start_tag('vertexbuffer', {
+            'positions':'true',
+            'normals':'true',
+        })
+        loops = [p.loop_indices for p in mesh.polygons]
+        verts = []
+        coords = [x.co for x in mesh.vertices]
+        normals = [x.normal for x in mesh.vertices]
+        [write_vector3(doc, 'position', x) for x in coords]
+        [write_vector3(doc, 'normal', x) for x in coords]
+        doc.end_tag('vertexbuffer')
+        doc.end_tag('submesh')
+
+    doc.end_tag('submeshes')
+    doc.close()
+
+
+def remove_modifiers(obj):
+    if obj.modifiers:
+        cleanup = True
+        copy = ob.copy()
+        rem = []
+        for mod in copy.modifiers:        # remove armature and array modifiers before collaspe
+            if mod.type in 'ARMATURE ARRAY'.split(): rem.append( mod )
+        for mod in rem: copy.modifiers.remove( mod )
+    return obj
+
+def triangulate(mesh):
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    bmesh.ops.triangulate(bm, faces=bm.faces)
+    bm.to_mesh(mesh)
+    bm.free()
+    return mesh
+
+def dot_mesh_xml(objs, path, cliargs):
+    """
+    export the vertices of an object into a .mesh file
+
+    ob: the blender object
+    path: the path to save the .mesh file to. path MUST exist
+    force_name: force a different name for this .mesh
+    kwargs:
+      * material_prefix - string. (optional)
+      * overwrite - bool. (optional) default False
+    """
+    obj_name = 'Cube'
+    target_file = os.path.join(path, '%s.mesh.xml' % obj_name )
+
+    overwrite = True
+
+    if os.path.isfile(target_file) and not overwrite:
+        return []
+
+    if not os.path.isdir( path ):
+        os.makedirs( path )
+
+    start = time.time()
+
+    objs = [x for x in objs if x.type == 'MESH']
+    if cliargs['--collection']:
+        objs = [x for x in objs if util.is_in_collection(x.users_collection, cliargs['--collection'])]
+
+        count = len(objs)
+        if count == 0:
+            log.info(f"No mesh(es) found in collection '{cliargs['--collection']}'")
+            return
+
+        log.info(f"Found {count} mesh(es) in collection '{cliargs['--collection']}'")
+
+    objs = [obj.copy() for obj in objs]
+    objs = map(remove_modifiers, objs)
+
+    meshes = [obj.to_mesh() for obj in objs]
+    [obj.update() for obj in meshes]
+    [obj.calc_loop_triangles() for obj in meshes]
+
+    # Ogre only supports triangles
+    meshes = map(triangulate, meshes)
+
+    with open(target_file, 'w') as f:
+        doc = SimpleSaxWriter(f, 'mesh', {})
+
+        write_submeshes(doc, meshes)
 
 
 def dot_mesh( ob, path, force_name=None, ignore_shape_animation=False, normals=True, tangents=4, isLOD=False, **kwargs):

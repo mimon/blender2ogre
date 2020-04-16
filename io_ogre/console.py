@@ -13,11 +13,12 @@ Options:
 """
 import bpy
 import sys
-import os
+import os, logging
 import re
 
 from os.path import join, split
 
+log = logging.getLogger(__name__)
 
 def is_in_collection(collections, prefix):
     return any([x.name.startswith(prefix) for x in collections])
@@ -49,20 +50,24 @@ if __name__ == "__main__":
     name = cliargs['--outname'] if cliargs['--outname'] else None
 
     print(cliargs)
+    mesh.dot_mesh_xml(
+        bpy.context.scene.objects,
+        path,
+        cliargs
+    )
+    exit()
     objs = [x for x in bpy.context.scene.objects if x.type == 'MESH']
     if cliargs['--collection']:
         objs = [x for x in objs if is_in_collection(x.users_collection, cliargs['--collection'])]
 
-        if len(objs) == 0:
+        count = len(objs)
+        if count == 0:
             print(f"No mesh(es) found in collection '{cliargs['--collection']}'")
+
+        log.info(f"Found {count} mesh(es) in collection '{cliargs['--collection']}'")
 
         for ob in objs:
             if 'mesh' in cliargs:
-                mesh.dot_mesh(
-                    ob,
-                    path,
-                    force_name=name
-                )
                 skeleton.dot_skeleton(
                     ob,
                     path,

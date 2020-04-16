@@ -10,6 +10,9 @@ import subprocess
 import re
 import sys
 
+def is_in_collection(collections, prefix):
+    return any([x.name.startswith(prefix) for x in collections])
+
 def xml_converter_parameters():
     """
     Return the name of the ogre converter
