@@ -57,22 +57,50 @@ def write_vector3(doc, name, vec3):
             'z' : '%6f' % z
     })
 
+def write_face(doc, face):
+    v1, v2, v3 = face
+    doc.leaf_tag('face', {
+            'v1' : str(v1),
+            'v2' : str(v2),
+            'v3' : str(v3)
+    })
+
 def write_submeshes(doc, meshes):
     doc.start_tag('submeshes', {})
     for mesh in meshes:
         log.info(f"Tris: {len(mesh.polygons)}")
-        doc.start_tag('submesh', {})
+        doc.start_tag('submesh', {
+            'operationtype': 'triangle_list',
+            'usesharedvertices': 'false'
+        })
+
+        doc.start_tag('geometry', {
+            'vertexcount': len(mesh.vertices)
+        })
         doc.start_tag('vertexbuffer', {
             'positions':'true',
             'normals':'true',
+            'tangents': 'true',
+            'tangent_dimensions': '4',
+            'texture_coords': '0'
         })
-        loops = [p.loop_indices for p in mesh.polygons]
-        verts = []
         coords = [x.co for x in mesh.vertices]
         normals = [x.normal for x in mesh.vertices]
-        [write_vector3(doc, 'position', x) for x in coords]
-        [write_vector3(doc, 'normal', x) for x in coords]
+
+        for coord, normal in zip(coords, normals):
+            doc.start_tag('vertex', {})
+            write_vector3(doc, 'position', coord)
+            write_vector3(doc, 'normal', normal)
+            doc.end_tag('vertex')
+
         doc.end_tag('vertexbuffer')
+        doc.end_tag('geometry')
+
+        doc.start_tag('faces', {})
+        polys = [p.vertices for p in mesh.polygons]
+        [write_face(doc, face) for face in polys]
+        doc.end_tag('faces')
+
         doc.end_tag('submesh')
 
     doc.end_tag('submeshes')
