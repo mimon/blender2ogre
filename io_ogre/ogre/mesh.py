@@ -5,6 +5,7 @@ from ..report import Report
 from ..util import *
 from ..xml import *
 from .. import util
+from ..ogre2 import texture
 from .material import *
 from .skeleton import Skeleton
 
@@ -57,6 +58,13 @@ def write_vector3(doc, name, vec3):
             'z' : '%6f' % z
     })
 
+def write_vector2(doc, name, vec2):
+    u, v = vec2
+    doc.leaf_tag(name, {
+            'u' : '%6f' % u,
+            'v' : '%6f' % v,
+    })
+
 def write_face(doc, face):
     v1, v2, v3 = face
     doc.leaf_tag('face', {
@@ -80,17 +88,19 @@ def write_submeshes(doc, meshes):
         doc.start_tag('vertexbuffer', {
             'positions':'true',
             'normals':'true',
-            'tangents': 'true',
+            'tangents': 'false',
             'tangent_dimensions': '4',
-            'texture_coords': '0'
+            'texture_coords': len(mesh.uv_layers)
         })
         coords = [x.co for x in mesh.vertices]
         normals = [x.normal for x in mesh.vertices]
+        texcoord_sets = [x.data for x in mesh.uv_layers]
 
-        for coord, normal in zip(coords, normals):
+        for coord, normal, *texcoord_set in zip(coords, normals, *texcoord_sets):
             doc.start_tag('vertex', {})
             write_vector3(doc, 'position', coord)
             write_vector3(doc, 'normal', normal)
+            [write_vector2(doc, 'texcoord', texcoord.uv) for texcoord in texcoord_set]
             doc.end_tag('vertex')
 
         doc.end_tag('vertexbuffer')
