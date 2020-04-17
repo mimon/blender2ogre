@@ -131,9 +131,16 @@ def triangulate(mesh):
     bm = bmesh.new()
     bm.from_mesh(mesh)
     bmesh.ops.triangulate(bm, faces=bm.faces)
+    # verts = [obj.vertices for obj in objs]
+    for vert in bm.verts:
+        swap_axes(vert)
     bm.to_mesh(mesh)
     bm.free()
     return mesh
+
+def swap_axes(vertex):
+    vertex.co.x, vertex.co.y, vertex.co.z = vertex.co.x, vertex.co.z, -vertex.co.y
+    return vertex
 
 def dot_mesh_xml(objs, path, cliargs):
     """
