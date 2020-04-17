@@ -15,13 +15,11 @@ import bpy
 import sys
 import os, logging
 import re
+from io_ogre import util
 
 from os.path import join, split
 
 log = logging.getLogger(__name__)
-
-def is_in_collection(collections, prefix):
-    return any([x.name.startswith(prefix) for x in collections])
 
 if __name__ == "__main__":
     import io_ogre.docopt.docopt
@@ -50,11 +48,27 @@ if __name__ == "__main__":
     name = cliargs['--outname'] if cliargs['--outname'] else None
 
     print(cliargs)
+
+    objs = [x for x in bpy.context.scene.objects if x.type == 'MESH']
+    if cliargs['--collection']:
+        objs = [x for x in objs if util.is_in_collection(x.users_collection, cliargs['--collection'])]
+
+        count = len(objs)
+        if count == 0:
+            log.info(f"No mesh(es) found in collection '{cliargs['--collection']}'")
+            exit()
+
+        log.info(f"Found {count} mesh(es) in collection '{cliargs['--collection']}'")
+
     mesh.dot_mesh_xml(
-        bpy.context.scene.objects,
+        objs,
         path,
         cliargs
     )
+
+    for obj in objs:
+        texture.export_textures(obj, path)
+
     exit()
     objs = [x for x in bpy.context.scene.objects if x.type == 'MESH']
     if cliargs['--collection']:

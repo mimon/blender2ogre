@@ -122,9 +122,14 @@ def remove_modifiers(obj):
         cleanup = True
         copy = ob.copy()
         rem = []
-        for mod in copy.modifiers:        # remove armature and array modifiers before collaspe
-            if mod.type in 'ARMATURE ARRAY'.split(): rem.append( mod )
-        for mod in rem: copy.modifiers.remove( mod )
+
+        # Remove armature and array modifiers before collaspe
+        for mod in copy.modifiers:
+            if mod.type in 'ARMATURE ARRAY'.split():
+                rem.append( mod )
+        for mod in rem:
+            copy.modifiers.remove( mod )
+
     return obj
 
 def triangulate(mesh):
@@ -156,8 +161,6 @@ def dot_mesh_xml(objs, path, cliargs):
     obj_name = 'Cube'
     target_file = os.path.join(path, '%s.mesh.xml' % obj_name )
 
-    overwrite = True
-
     if os.path.isfile(target_file) and not overwrite:
         return []
 
@@ -166,31 +169,20 @@ def dot_mesh_xml(objs, path, cliargs):
 
     start = time.time()
 
-    objs = [x for x in objs if x.type == 'MESH']
-    if cliargs['--collection']:
-        objs = [x for x in objs if util.is_in_collection(x.users_collection, cliargs['--collection'])]
-
-        count = len(objs)
-        if count == 0:
-            log.info(f"No mesh(es) found in collection '{cliargs['--collection']}'")
-            return
-
-        log.info(f"Found {count} mesh(es) in collection '{cliargs['--collection']}'")
-
     objs = [obj.copy() for obj in objs]
-    objs = map(remove_modifiers, objs)
+    objs = [remove_modifiers(x) for x in objs]
 
     meshes = [obj.to_mesh() for obj in objs]
-    [obj.update() for obj in meshes]
-    [obj.calc_loop_triangles() for obj in meshes]
 
     # Ogre only supports triangles
-    meshes = map(triangulate, meshes)
+    meshes = [triangulate(x) for x in meshes]
 
     with open(target_file, 'w') as f:
         doc = SimpleSaxWriter(f, 'mesh', {})
 
-        write_submeshes(doc, meshes)
+        write_submeshes(doc, list(meshes))
+
+    # g = [texture.export_textures(obj, path) for obj in objs]
 
 
 def dot_mesh( ob, path, force_name=None, ignore_shape_animation=False, normals=True, tangents=4, isLOD=False, **kwargs):
