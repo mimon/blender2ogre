@@ -119,16 +119,13 @@ def write_submeshes(doc, meshes):
 
 def remove_modifiers(obj):
     if obj.modifiers:
-        cleanup = True
-        copy = ob.copy()
         rem = []
-
         # Remove armature and array modifiers before collaspe
-        for mod in copy.modifiers:
+        for mod in obj.modifiers:
             if mod.type in 'ARMATURE ARRAY'.split():
                 rem.append( mod )
         for mod in rem:
-            copy.modifiers.remove( mod )
+            obj.modifiers.remove( mod )
 
     return obj
 
@@ -153,16 +150,12 @@ def dot_mesh_xml(objs, path, cliargs):
 
     ob: the blender object
     path: the path to save the .mesh file to. path MUST exist
-    force_name: force a different name for this .mesh
-    kwargs:
-      * material_prefix - string. (optional)
-      * overwrite - bool. (optional) default False
     """
-    obj_name = 'Cube'
+    obj_name = cliargs['--outname'] or objs[0].name
     target_file = os.path.join(path, '%s.mesh.xml' % obj_name )
 
-    if os.path.isfile(target_file) and not overwrite:
-        return []
+    # if os.path.isfile(target_file) and not overwrite:
+    #     return []
 
     if not os.path.isdir( path ):
         os.makedirs( path )
