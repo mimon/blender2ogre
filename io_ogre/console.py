@@ -1,7 +1,7 @@
 """Naval Fate.
 
 Usage:
-    naval_fate.py mesh <blendfile> [options]
+    naval_fate.py mesh <blendfile> [options] <outfile>
     naval_fate.py scene
 
 Options:
@@ -46,6 +46,7 @@ if __name__ == "__main__":
     dir = os.path.dirname(os.path.realpath(__file__))
     path = cliargs['--outdir'] if cliargs['--outdir'] else dir 
     name = cliargs['--outname'] if cliargs['--outname'] else None
+    path = cliargs['<outfile>']
 
     print(cliargs)
 
@@ -67,6 +68,7 @@ if __name__ == "__main__":
     )
 
     for obj in objs:
+        skeleton.dot_skeleton(obj, path)
         texture.export_textures(obj, path)
 
     exit()

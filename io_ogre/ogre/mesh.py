@@ -76,14 +76,29 @@ def write_face(doc, face):
 def write_submeshes(doc, meshes):
     doc.start_tag('submeshes', {})
     for mesh in meshes:
-        log.info(f"Tris: {len(mesh.polygons)}")
+        mesh.calc_tangents()
+        coords = [x.co for x in mesh.vertices]
+        normals = [x.normal for x in mesh.vertices]
+        texcoord_sets = [x.data for x in mesh.uv_layers]
+
+        polys = [x.loop_indices for x in mesh.polygons]
+        vert_indexs = [mesh.loops[x].vertex_index for sublist in polys for x in sublist]
+        normals = [mesh.vertices[mesh.loops[x].vertex_index].normal for sublist in polys for x in sublist]
+        tangents = [mesh.loops[x].tangent for sublist in polys for x in sublist]
+        verts = [mesh.vertices[x] for x in vert_indexs]
+        coords = [x.co for x in verts]
+        texcoord_sets = [layer.data[x] for x in vert_indexs for layer in mesh.uv_layers]
+        faces = [(i, i+1, i+2) for i in range(0, len(coords), 3)]
+
+        log.info(f"Tris: {len(faces)}")
+
         doc.start_tag('submesh', {
             'operationtype': 'triangle_list',
             'usesharedvertices': 'false'
         })
 
         doc.start_tag('geometry', {
-            'vertexcount': len(mesh.vertices)
+            'vertexcount': len(coords)
         })
         doc.start_tag('vertexbuffer', {
             'positions':'true',
@@ -92,14 +107,11 @@ def write_submeshes(doc, meshes):
             'tangent_dimensions': '4',
             'texture_coords': len(mesh.uv_layers)
         })
-        coords = [x.co for x in mesh.vertices]
-        normals = [x.normal for x in mesh.vertices]
-        texcoord_sets = [x.data for x in mesh.uv_layers]
-
-        for coord, normal, *texcoord_set in zip(coords, normals, *texcoord_sets):
+        for coord, normal, tangent, *texcoord_set in zip(coords, normals, tangents, texcoord_sets):
             doc.start_tag('vertex', {})
             write_vector3(doc, 'position', coord)
             write_vector3(doc, 'normal', normal)
+            write_vector3(doc, 'tangent', tangent)
             [write_vector2(doc, 'texcoord', texcoord.uv) for texcoord in texcoord_set]
             doc.end_tag('vertex')
 
@@ -108,8 +120,10 @@ def write_submeshes(doc, meshes):
 
         doc.start_tag('faces', {})
         polys = [p.vertices for p in mesh.polygons]
-        [write_face(doc, face) for face in polys]
+        [write_face(doc, face) for face in faces]
         doc.end_tag('faces')
+
+
 
         doc.end_tag('submesh')
 
@@ -152,13 +166,13 @@ def dot_mesh_xml(objs, path, cliargs):
     path: the path to save the .mesh file to. path MUST exist
     """
     obj_name = cliargs['--outname'] or objs[0].name
-    target_file = os.path.join(path, '%s.mesh.xml' % obj_name )
+    target_file = path #os.path.join(path, '%s.mesh.xml' % obj_name )
 
     # if os.path.isfile(target_file) and not overwrite:
     #     return []
 
-    if not os.path.isdir( path ):
-        os.makedirs( path )
+    # if not os.path.isdir( path ):
+    #     os.makedirs( path )
 
     start = time.time()
 
@@ -175,7 +189,6 @@ def dot_mesh_xml(objs, path, cliargs):
 
         write_submeshes(doc, list(meshes))
 
-    # g = [texture.export_textures(obj, path) for obj in objs]
 
 
 def dot_mesh( ob, path, force_name=None, ignore_shape_animation=False, normals=True, tangents=4, isLOD=False, **kwargs):
