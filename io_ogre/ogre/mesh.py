@@ -6,7 +6,6 @@ from ..util import *
 from ..xml import *
 from .. import util
 from ..ogre2 import texture
-from .material import *
 from .skeleton import Skeleton
 
 log = logging.getLogger(__name__)

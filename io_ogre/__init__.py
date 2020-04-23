@@ -36,81 +36,12 @@ import bpy
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
 from . import config
-from . import properties
-from . import ui
 
 import sys
 
-class Blender2OgreAddonPreferences(bpy.types.AddonPreferences):
-    bl_idname = __name__
-
-    def apply_preferences_to_config(self, context):
-        config.update_from_addon_preference(context)
-
-    IMAGE_MAGICK_CONVERT = bpy.props.StringProperty(
-        name="IMAGE_MAGICK_CONVERT",
-        subtype='FILE_PATH',
-        default=config.CONFIG['IMAGE_MAGICK_CONVERT'],
-        update=apply_preferences_to_config
-    )
-    OGRETOOLS_XML_CONVERTER = bpy.props.StringProperty(
-        name="OGRETOOLS_XML_CONVERTER",
-        subtype='FILE_PATH',
-        default=config.CONFIG['OGRETOOLS_XML_CONVERTER'],
-        update=apply_preferences_to_config
-    )
-    OGRETOOLS_MESH_MAGICK = bpy.props.StringProperty(
-        name="OGRETOOLS_MESH_MAGICK",
-        subtype='FILE_PATH',
-        default=config.CONFIG['OGRETOOLS_MESH_MAGICK'],
-        update=apply_preferences_to_config
-    )
-    TUNDRA_ROOT = bpy.props.StringProperty(
-        name="TUNDRA_ROOT",
-        subtype='FILE_PATH',
-        default=config.CONFIG['TUNDRA_ROOT'],
-        update=apply_preferences_to_config
-    )
-    MESH_PREVIEWER = bpy.props.StringProperty(
-        name="MESH_PREVIEWER",
-        subtype='FILE_PATH',
-        default=config.CONFIG['MESH_PREVIEWER'],
-        update=apply_preferences_to_config
-    )
-    USER_MATERIALS = bpy.props.StringProperty(
-        name="USER_MATERIALS",
-        subtype='FILE_PATH',
-        default=config.CONFIG['USER_MATERIALS'],
-        update=apply_preferences_to_config
-    )
-    SHADER_PROGRAMS = bpy.props.StringProperty(
-        name="SHADER_PROGRAMS",
-        subtype='FILE_PATH',
-        default=config.CONFIG['SHADER_PROGRAMS'],
-        update=apply_preferences_to_config
-    )
-
-    def draw(self, context):
-        layout = self.layout
-        layout.prop(self, "OGRETOOLS_XML_CONVERTER")
-        layout.prop(self, "OGRETOOLS_MESH_MAGICK")
-        layout.prop(self, "TUNDRA_ROOT")
-        layout.prop(self, "MESH_PREVIEWER")
-        layout.prop(self, "IMAGE_MAGICK_CONVERT")
-        layout.prop(self, "USER_MATERIALS")
-        layout.prop(self, "SHADER_PROGRAMS")      
 
 def register():
-    logging.info('Starting io_ogre %s', bl_info["version"])
-    # the ui modules define auto_register functions that
-    # return classes that should be loaded by the plugin
-    for clazz in ui.auto_register(True):
-        bpy.utils.register_class(clazz)
-
-    bpy.utils.register_class(Blender2OgreAddonPreferences)
-
-    # read user preferences
-    config.update_from_addon_preference(bpy.context)
+    pass
 
 def unregister():
     logging.info('Unloading io_ogre %s', bl_info["version"])

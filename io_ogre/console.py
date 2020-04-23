@@ -34,7 +34,6 @@ if __name__ == "__main__":
 
 
     from io_ogre import config
-    from io_ogre.ogre.scene import dot_scene
     from io_ogre.ogre2 import texture
     from io_ogre.ogre import mesh, skeleton
 
