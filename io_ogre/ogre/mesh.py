@@ -49,6 +49,73 @@ class VertexColorLookup:
             color[3] = mathutils.Vector(self.__alphas[item]).length
         return color
 
+def flatten(array):
+    return [x for sublist in array for x in sublist]
+
+class BlenderToOgreData:
+    def __init__(self, obj, mesh):
+        mesh.calc_tangents()
+        coords = [x.co for x in mesh.vertices]
+        normals = [x.normal for x in mesh.vertices]
+        texcoord_sets = [x.data for x in mesh.uv_layers]
+
+        polys = [x.loop_indices for x in mesh.polygons]
+        vert_indexs = [mesh.loops[x].vertex_index for sublist in polys for x in sublist]
+        normals = [mesh.vertices[mesh.loops[x].vertex_index].normal for sublist in polys for x in sublist]
+        tangents = [mesh.loops[x].tangent for sublist in polys for x in sublist]
+        verts = [mesh.vertices[x] for x in vert_indexs]
+        coords = [x.co for x in verts]
+        texcoord_sets = [layer.data[x] for x in vert_indexs for layer in mesh.uv_layers]
+        faces = [(i, i+1, i+2) for i in range(0, len(coords), 3)]
+
+
+        # group_to_bone_index = {k: v for v, k in enumerate(group_names)}
+        arm = obj.find_armature()
+        # boneassg v=0 b0
+        # boneassg v=0 b1
+        # boneassg v=0 b2
+        if arm:
+            bones = [x.bone for x in arm.pose.bones]
+            bone_names = [x.name for x in bones]
+            bone_name_to_idx = {k: v for v, k in enumerate(bone_names)}
+
+            vertex_group_assignments = [(x.name, x.index) for x in obj.vertex_groups]
+
+            vertex_group_index_to_bone_idx = {index: bone_name_to_idx[name] for name, index in vertex_group_assignments}
+
+            vertex_group_assignments = [index for x, index in vertex_group_assignments if x in bone_names]
+
+            grps = [x.groups for x in mesh.vertices]
+            grps = [list(map(lambda x: x.group, x)) for x in grps]
+            grps = [list(filter(lambda x: x in vertex_group_assignments, x)) for x in grps]
+            print(grps)
+            print('----')
+
+            grps = [list(map(lambda x: vertex_group_index_to_bone_idx[x], x)) for x in grps]
+            print(grps)
+
+            vertex_bone_assignments = grps
+            # indexmap = [i % 3 for i in range(0, len(mesh.polygons) * 3, 0)]
+            # vertex_groups = obj.vertex_groups
+            # for bone in arm.pose.bones:
+        else:
+            log.info(f'No armature found for {obj.name}')
+
+        # for group in vertex_groups:
+        #     print (group.name)
+
+        self.faces = faces
+
+        self.coords = coords
+
+        self.texcoord_sets = texcoord_sets
+
+        self.tangents = tangents
+
+        self.normals = normals
+
+        self.vertex_bone_assignments = vertex_bone_assignments
+
 def write_vector3(doc, name, vec3):
     x, y, z = vec3
     doc.leaf_tag(name, {
@@ -72,27 +139,37 @@ def write_face(doc, face):
             'v3' : str(v3)
     })
 
-def write_bone_assignments(doc, mesh):
-    return
-    vertex_groups = mesh.vertex_groups
+def write_bone_assignments(doc, obj):
+    indexmap = [i % 3 for i in range(0, len(mesh.polygons) * 3, 0)]
+    vertex_groups = obj.vertex_groups
 
-def write_geometry(doc, mesh):
-    mesh.calc_tangents()
-    coords = [x.co for x in mesh.vertices]
-    normals = [x.normal for x in mesh.vertices]
-    texcoord_sets = [x.data for x in mesh.uv_layers]
+    for group in vertex_groups:
+        print (group.name)
+        exit(1)
 
-    polys = [x.loop_indices for x in mesh.polygons]
-    vert_indexs = [mesh.loops[x].vertex_index for sublist in polys for x in sublist]
-    normals = [mesh.vertices[mesh.loops[x].vertex_index].normal for sublist in polys for x in sublist]
-    tangents = [mesh.loops[x].tangent for sublist in polys for x in sublist]
-    verts = [mesh.vertices[x] for x in vert_indexs]
-    coords = [x.co for x in verts]
-    texcoord_sets = [layer.data[x] for x in vert_indexs for layer in mesh.uv_layers]
-    faces = [(i, i+1, i+2) for i in range(0, len(coords), 3)]
+def write_geometry(doc, struct):
+    # mesh.calc_tangents()
+    # coords = [x.co for x in mesh.vertices]
+    # normals = [x.normal for x in mesh.vertices]
+    # texcoord_sets = [x.data for x in mesh.uv_layers]
+
+    # polys = [x.loop_indices for x in mesh.polygons]
+    # vert_indexs = [mesh.loops[x].vertex_index for sublist in polys for x in sublist]
+    # normals = [mesh.vertices[mesh.loops[x].vertex_index].normal for sublist in polys for x in sublist]
+    # tangents = [mesh.loops[x].tangent for sublist in polys for x in sublist]
+    # verts = [mesh.vertices[x] for x in vert_indexs]
+    # coords = [x.co for x in verts]
+    # texcoord_sets = [layer.data[x] for x in vert_indexs for layer in mesh.uv_layers]
+    # faces = [(i, i+1, i+2) for i in range(0, len(coords), 3)]
+
+
+    coords = struct.coords
+    normals = struct.normals
+    texcoord_sets = struct.texcoord_sets
+    tangents = struct.tangents
+    faces = struct.tangents
 
     log.info(f"Tris: {len(faces)}")
-
 
     doc.start_tag('geometry', {
         'vertexcount': len(coords)
@@ -102,7 +179,7 @@ def write_geometry(doc, mesh):
         'normals':'true',
         'tangents': 'false',
         'tangent_dimensions': '4',
-        'texture_coords': len(mesh.uv_layers)
+        'texture_coords': len(texcoord_sets)
     })
     for coord, normal, tangent, *texcoord_set in zip(coords, normals, tangents, texcoord_sets):
         doc.start_tag('vertex', {})
@@ -113,25 +190,34 @@ def write_geometry(doc, mesh):
         doc.end_tag('vertex')
 
     doc.start_tag('faces', {})
-    polys = [p.vertices for p in mesh.polygons]
     [write_face(doc, face) for face in faces]
     doc.end_tag('faces')
 
     doc.end_tag('vertexbuffer')
     doc.end_tag('geometry')
 
-def write_submeshes(doc, meshes):
+    doc.start_tag('boneassignments', {})
+
+def write_submeshes(doc, objs):
+
+    copies = [obj.copy() for obj in objs]
+    copies = [remove_modifiers(x) for x in copies]
+    meshes = [x.to_mesh() for x in copies]
+    meshes = [triangulate(x) for x in meshes]
+
+    structs = [BlenderToOgreData(obj, mesh) for mesh, obj in zip(meshes, objs)]
+
     doc.start_tag('submeshes', {})
-    for mesh in meshes:
+    for struct in structs:
 
         doc.start_tag('submesh', {
             'operationtype': 'triangle_list',
             'usesharedvertices': 'false'
         })
-        write_geometry(doc, mesh)
+        write_geometry(doc, struct)
 
 
-        write_bone_assignments(doc, mesh)
+        # write_bone_assignments(doc, struct)
 
         doc.end_tag('submesh')
 
@@ -184,18 +270,10 @@ def dot_mesh_xml(objs, path, cliargs):
 
     start = time.time()
 
-    objs = [obj.copy() for obj in objs]
-    objs = [remove_modifiers(x) for x in objs]
-
-    meshes = [obj.to_mesh() for obj in objs]
-
-    # Ogre only supports triangles
-    meshes = [triangulate(x) for x in meshes]
-
     with open(target_file, 'w') as f:
         doc = SimpleSaxWriter(f, 'mesh', {})
 
-        write_submeshes(doc, list(meshes))
+        write_submeshes(doc, list(objs))
 
 
 
