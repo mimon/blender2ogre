@@ -86,23 +86,19 @@ class BlenderToOgreData:
             vertex_group_assignments = [index for x, index in vertex_group_assignments if x in bone_names]
 
             grps = [x.groups for x in mesh.vertices]
-            grps = [list(map(lambda x: x.group, x)) for x in grps]
-            grps = [list(filter(lambda x: x in vertex_group_assignments, x)) for x in grps]
-            print(grps)
-            print('----')
+            grps = [list(map(lambda x: (x.group, x.weight), x)) for x in grps]
+            grps = [list(filter(lambda x: x[0] in vertex_group_assignments, x)) for x in grps]
 
-            grps = [list(map(lambda x: vertex_group_index_to_bone_idx[x], x)) for x in grps]
-            print(grps)
+            grps = [list(map(lambda x: (vertex_group_index_to_bone_idx[x[0]], x[1]), x)) for x in grps]
 
-            vertex_bone_assignments = grps
+            vertex_bone_assignments = [grps[x] for x in vert_indexs]
             # indexmap = [i % 3 for i in range(0, len(mesh.polygons) * 3, 0)]
             # vertex_groups = obj.vertex_groups
             # for bone in arm.pose.bones:
         else:
             log.info(f'No armature found for {obj.name}')
 
-        # for group in vertex_groups:
-        #     print (group.name)
+        self.obj = obj
 
         self.faces = faces
 
@@ -139,13 +135,14 @@ def write_face(doc, face):
             'v3' : str(v3)
     })
 
-def write_bone_assignments(doc, obj):
-    indexmap = [i % 3 for i in range(0, len(mesh.polygons) * 3, 0)]
-    vertex_groups = obj.vertex_groups
-
-    for group in vertex_groups:
-        print (group.name)
-        exit(1)
+def write_bone_assignment(doc, vertex_index, boneassignments):
+    for boneassignment in boneassignments:
+        boneidx, weight = boneassignment
+        doc.leaf_tag('vertexboneassignment', {
+            'boneindex': boneidx,
+            'weight': weight,
+            'vertexindex': vertex_index
+        })
 
 def write_geometry(doc, struct):
     # mesh.calc_tangents()
@@ -167,7 +164,8 @@ def write_geometry(doc, struct):
     normals = struct.normals
     texcoord_sets = struct.texcoord_sets
     tangents = struct.tangents
-    faces = struct.tangents
+    faces = struct.faces
+    vertex_bone_assignments = struct.vertex_bone_assignments
 
     log.info(f"Tris: {len(faces)}")
 
@@ -179,7 +177,7 @@ def write_geometry(doc, struct):
         'normals':'true',
         'tangents': 'false',
         'tangent_dimensions': '4',
-        'texture_coords': len(texcoord_sets)
+        'texture_coords': 1
     })
     for coord, normal, tangent, *texcoord_set in zip(coords, normals, tangents, texcoord_sets):
         doc.start_tag('vertex', {})
@@ -189,14 +187,12 @@ def write_geometry(doc, struct):
         [write_vector2(doc, 'texcoord', texcoord.uv) for texcoord in texcoord_set]
         doc.end_tag('vertex')
 
-    doc.start_tag('faces', {})
-    [write_face(doc, face) for face in faces]
-    doc.end_tag('faces')
-
     doc.end_tag('vertexbuffer')
     doc.end_tag('geometry')
 
-    doc.start_tag('boneassignments', {})
+    doc.start_tag('faces', {})
+    [write_face(doc, face) for face in faces]
+    doc.end_tag('faces')
 
 def write_submeshes(doc, objs):
 
@@ -216,12 +212,20 @@ def write_submeshes(doc, objs):
         })
         write_geometry(doc, struct)
 
+        doc.start_tag('boneassignments', {})
+        [write_bone_assignment(doc, i, x) for i, x in enumerate(struct.vertex_bone_assignments)]
+        doc.end_tag('boneassignments')
 
-        # write_bone_assignments(doc, struct)
 
         doc.end_tag('submesh')
 
     doc.end_tag('submeshes')
+
+    for struct in structs:
+        doc.leaf_tag('skeletonlink', {
+            'name': f'{struct.obj.data.name}.skeleton'
+        })
+
     doc.close()
 
 
