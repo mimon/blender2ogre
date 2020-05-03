@@ -30,7 +30,7 @@ def dot_skeleton(obj, path, **kwargs):
         with open(xmlfile, 'wb') as fd:
             fd.write( bytes(skel.to_xml(),'utf-8') )
 
-        return name + '.skeleton'
+        return [f'{pathdir}/{name}.skeleton.xml']
 
     return None
 

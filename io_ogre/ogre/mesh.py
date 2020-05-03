@@ -279,6 +279,8 @@ def dot_mesh_xml(objs, path, cliargs):
 
         write_submeshes(doc, list(objs))
 
+    return [target_file]
+
 
 
 def dot_mesh( ob, path, force_name=None, ignore_shape_animation=False, normals=True, tangents=4, isLOD=False, **kwargs):

@@ -1,8 +1,8 @@
 """Naval Fate.
 
 Usage:
-    naval_fate.py mesh <blendfile> [options] <outfile>
-    naval_fate.py scene
+    naval_fate.py mesh <blendfile> [options] <outdir>
+    naval_fate.py skeleton <blendfile> [options] <outfile>
 
 Options:
     -h --help               Show this screen.
@@ -19,7 +19,10 @@ from io_ogre import util
 
 from os.path import join, split
 
-log = logging.getLogger(__name__)
+log = logging.getLogger()
+log.handlers = []
+log.addHandler(logging.NullHandler())
+
 
 if __name__ == "__main__":
     import io_ogre.docopt.docopt
@@ -28,7 +31,6 @@ if __name__ == "__main__":
         argv = sys.argv[idx+1:]
     except ValueError:
         argv = None
-    print(argv)
 
     cliargs = io_ogre.docopt.docopt.docopt(__doc__, argv, version='Naval Fate 2.0')
 
@@ -40,14 +42,18 @@ if __name__ == "__main__":
     # Update config
     config.CONFIG['SWAP_AXIS'] = cliargs['--swap-axes']
 
-    bpy.ops.wm.open_mainfile(filepath=cliargs['<blendfile>'])
 
     dir = os.path.dirname(os.path.realpath(__file__))
     path = cliargs['--outdir'] if cliargs['--outdir'] else dir 
     name = cliargs['--outname'] if cliargs['--outname'] else None
-    path = cliargs['<outfile>']
+    path = cliargs['<outfile>'] or cliargs['<outdir>']
+    blendfile = cliargs['<blendfile>']
 
-    print(cliargs)
+    bpy.ops.wm.open_mainfile(filepath=blendfile)
+
+    log.debug(cliargs)
+
+    files_written = []
 
     objs = [x for x in bpy.context.scene.objects if x.type == 'MESH']
     if cliargs['--collection']:
@@ -60,15 +66,24 @@ if __name__ == "__main__":
 
         log.info(f"Found {count} mesh(es) in collection '{cliargs['--collection']}'")
 
-    mesh.dot_mesh_xml(
-        objs,
-        path,
-        cliargs
-    )
+    if cliargs['mesh']:
+        outpath = '%s/%s.mesh.xml' % (path, os.path.basename(blendfile))
+        files = mesh.dot_mesh_xml(
+            objs,
+            outpath,
+            cliargs
+        )
+        files_written.extend(files)
 
     for obj in objs:
-        skeleton.dot_skeleton(obj, path)
+        outpath = '%s/%s.skeleton.xml' % (path, os.path.basename(blendfile))
+        if cliargs['mesh']:
+            files = skeleton.dot_skeleton(obj, outpath)
+            files_written.extend(files)
+
         texture.export_textures(obj, path)
+
+    print(' '.join(files_written))
 
     exit()
     objs = [x for x in bpy.context.scene.objects if x.type == 'MESH']
