@@ -32,7 +32,7 @@ def dot_skeleton(obj, path, **kwargs):
 
         return [f'{pathdir}/{name}.skeleton.xml']
 
-    return None
+    return []
 
 class Bone(object):
 

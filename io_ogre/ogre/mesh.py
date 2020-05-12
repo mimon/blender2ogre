@@ -69,6 +69,7 @@ class BlenderToOgreData:
         faces = [(i, i+1, i+2) for i in range(0, len(coords), 3)]
 
 
+        vertex_bone_assignments = []
         # group_to_bone_index = {k: v for v, k in enumerate(group_names)}
         arm = obj.find_armature()
         # boneassg v=0 b0

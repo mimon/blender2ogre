@@ -70,7 +70,7 @@ if __name__ == "__main__":
         outpath = '%s/%s.mesh.xml' % (path, os.path.basename(blendfile))
         files = mesh.dot_mesh_xml(
             objs,
-            outpath,
+            outpath.replace('.blend', ''),
             cliargs
         )
         files_written.extend(files)
