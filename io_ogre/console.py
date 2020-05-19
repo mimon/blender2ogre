@@ -10,6 +10,7 @@ Options:
     -o --outdir=<dir>
     -n --outname=<name>        Filename
     -x --swap-axes=<axes>      Convert from Blender's axes [default: xz-y]
+    -v                         Verbose mode, i.e. log everything
 """
 import bpy
 import sys
@@ -20,9 +21,6 @@ from io_ogre import util
 from os.path import join, split
 
 log = logging.getLogger()
-log.handlers = []
-log.addHandler(logging.NullHandler())
-
 
 if __name__ == "__main__":
     import io_ogre.docopt.docopt
@@ -33,6 +31,10 @@ if __name__ == "__main__":
         argv = None
 
     cliargs = io_ogre.docopt.docopt.docopt(__doc__, argv, version='Naval Fate 2.0')
+
+    if not cliargs['-v']:
+        log.handlers = []
+        log.addHandler(logging.NullHandler())
 
 
     from io_ogre import config
