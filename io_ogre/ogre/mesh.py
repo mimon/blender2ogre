@@ -198,8 +198,7 @@ def write_geometry(doc, struct):
 def write_submeshes(doc, objs):
 
     copies = [obj.copy() for obj in objs]
-    copies = [remove_modifiers(x) for x in copies]
-    meshes = [x.to_mesh() for x in copies]
+    meshes = [to_mesh(x) for x in objs]
     meshes = [triangulate(x) for x in meshes]
 
     structs = [BlenderToOgreData(obj, mesh) for mesh, obj in zip(meshes, objs)]
@@ -229,6 +228,15 @@ def write_submeshes(doc, objs):
 
     doc.close()
 
+def to_mesh(obj):
+    depsgraph = bpy.context.view_layer.depsgraph
+    depsgraph.update()
+    eval_obj = obj.evaluated_get(depsgraph)
+
+    return eval_obj.to_mesh(
+        preserve_all_data_layers=True,
+        depsgraph=depsgraph
+    )
 
 def remove_modifiers(obj):
     if obj.modifiers:
@@ -246,11 +254,13 @@ def triangulate(mesh):
     bm = bmesh.new()
     bm.from_mesh(mesh)
     bmesh.ops.triangulate(bm, faces=bm.faces)
-    # verts = [obj.vertices for obj in objs]
+
     for vert in bm.verts:
         swap_axes(vert)
+
     bm.to_mesh(mesh)
     bm.free()
+    mesh.update()
     return mesh
 
 def swap_axes(vertex):
