@@ -1,3 +1,6 @@
+import logging
+log = logging.getLogger(__name__)
+
 def flatten(list):
     return [item for sublist in list for item in sublist]
 
@@ -13,6 +16,9 @@ def get_textures(ob):
     return flatten(textures_per_material)
 
 def export_textures(obj, path):
-        textures = get_textures(obj)
-        for t in textures:
-            t.image.save_render(f'{path}/{t.image.name_full}.{t.image.file_format}')
+  textures = get_textures(obj)
+  log.info(f"Found {len(textures)} texture(s) to export")
+  for t in textures:
+      filename = f"{t.image.name_full}.{t.image.file_format}"
+      log.info(f"Exporting {filename}")
+      t.image.save_render(f'{path}/{filename}')

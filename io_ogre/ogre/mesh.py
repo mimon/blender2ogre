@@ -5,8 +5,10 @@ from ..report import Report
 from ..util import *
 from ..xml import *
 from .. import util
-from .material import *
+from ..ogre2 import texture
 from .skeleton import Skeleton
+
+log = logging.getLogger(__name__)
 
 class VertexColorLookup:
     def __init__(self, mesh):
@@ -46,6 +48,250 @@ class VertexColorLookup:
         if self.__alphas:
             color[3] = mathutils.Vector(self.__alphas[item]).length
         return color
+
+def flatten(array):
+    return [x for sublist in array for x in sublist]
+
+class BlenderToOgreData:
+    def __init__(self, obj, mesh):
+        mesh.calc_tangents()
+        coords = [x.co for x in mesh.vertices]
+        normals = [x.normal for x in mesh.vertices]
+        texcoord_sets = [x.data for x in mesh.uv_layers]
+
+        polys = [x.loop_indices for x in mesh.polygons]
+        vert_indexs = [mesh.loops[x].vertex_index for sublist in polys for x in sublist]
+        normals = [mesh.vertices[mesh.loops[x].vertex_index].normal for sublist in polys for x in sublist]
+        tangents = [mesh.loops[x].tangent for sublist in polys for x in sublist]
+        verts = [mesh.vertices[x] for x in vert_indexs]
+        coords = [x.co for x in verts]
+        texcoord_sets = [layer.data[x] for x in vert_indexs for layer in mesh.uv_layers]
+        faces = [(i, i+1, i+2) for i in range(0, len(coords), 3)]
+
+
+        vertex_bone_assignments = []
+        # group_to_bone_index = {k: v for v, k in enumerate(group_names)}
+        arm = obj.find_armature()
+        # boneassg v=0 b0
+        # boneassg v=0 b1
+        # boneassg v=0 b2
+        if arm:
+            bones = [x.bone for x in arm.pose.bones]
+            bone_names = [x.name for x in bones]
+            bone_name_to_idx = {k: v for v, k in enumerate(bone_names)}
+
+            vertex_group_assignments = [(x.name, x.index) for x in obj.vertex_groups]
+
+            vertex_group_index_to_bone_idx = {index: bone_name_to_idx[name] for name, index in vertex_group_assignments}
+
+            vertex_group_assignments = [index for x, index in vertex_group_assignments if x in bone_names]
+
+            grps = [x.groups for x in mesh.vertices]
+            grps = [list(map(lambda x: (x.group, x.weight), x)) for x in grps]
+            grps = [list(filter(lambda x: x[0] in vertex_group_assignments, x)) for x in grps]
+
+            grps = [list(map(lambda x: (vertex_group_index_to_bone_idx[x[0]], x[1]), x)) for x in grps]
+
+            vertex_bone_assignments = [grps[x] for x in vert_indexs]
+            # indexmap = [i % 3 for i in range(0, len(mesh.polygons) * 3, 0)]
+            # vertex_groups = obj.vertex_groups
+            # for bone in arm.pose.bones:
+        else:
+            log.info(f'No armature found for {obj.name}')
+
+        self.obj = obj
+
+        self.faces = faces
+
+        self.coords = coords
+
+        self.texcoord_sets = texcoord_sets
+
+        self.tangents = tangents
+
+        self.normals = normals
+
+        self.vertex_bone_assignments = vertex_bone_assignments
+
+def write_vector3(doc, name, vec3):
+    x, y, z = vec3
+    doc.leaf_tag(name, {
+            'x' : '%6f' % x,
+            'y' : '%6f' % y,
+            'z' : '%6f' % z
+    })
+
+def write_vector2(doc, name, vec2):
+    u, v = vec2
+    doc.leaf_tag(name, {
+            'u' : '%6f' % u,
+            'v' : '%6f' % v,
+    })
+
+def write_face(doc, face):
+    v1, v2, v3 = face
+    doc.leaf_tag('face', {
+            'v1' : str(v1),
+            'v2' : str(v2),
+            'v3' : str(v3)
+    })
+
+def write_bone_assignment(doc, vertex_index, boneassignments):
+    for boneassignment in boneassignments:
+        boneidx, weight = boneassignment
+        doc.leaf_tag('vertexboneassignment', {
+            'boneindex': boneidx,
+            'weight': weight,
+            'vertexindex': vertex_index
+        })
+
+def write_geometry(doc, struct):
+    # mesh.calc_tangents()
+    # coords = [x.co for x in mesh.vertices]
+    # normals = [x.normal for x in mesh.vertices]
+    # texcoord_sets = [x.data for x in mesh.uv_layers]
+
+    # polys = [x.loop_indices for x in mesh.polygons]
+    # vert_indexs = [mesh.loops[x].vertex_index for sublist in polys for x in sublist]
+    # normals = [mesh.vertices[mesh.loops[x].vertex_index].normal for sublist in polys for x in sublist]
+    # tangents = [mesh.loops[x].tangent for sublist in polys for x in sublist]
+    # verts = [mesh.vertices[x] for x in vert_indexs]
+    # coords = [x.co for x in verts]
+    # texcoord_sets = [layer.data[x] for x in vert_indexs for layer in mesh.uv_layers]
+    # faces = [(i, i+1, i+2) for i in range(0, len(coords), 3)]
+
+
+    coords = struct.coords
+    normals = struct.normals
+    texcoord_sets = struct.texcoord_sets
+    tangents = struct.tangents
+    faces = struct.faces
+    vertex_bone_assignments = struct.vertex_bone_assignments
+
+    log.info(f"Tris: {len(faces)}")
+
+    doc.start_tag('geometry', {
+        'vertexcount': len(coords)
+    })
+    doc.start_tag('vertexbuffer', {
+        'positions':'true',
+        'normals':'true',
+        'tangents': 'false',
+        'tangent_dimensions': '4',
+        'texture_coords': 1
+    })
+    for coord, normal, tangent, *texcoord_set in zip(coords, normals, tangents, texcoord_sets):
+        doc.start_tag('vertex', {})
+        write_vector3(doc, 'position', coord)
+        write_vector3(doc, 'normal', normal)
+        write_vector3(doc, 'tangent', tangent)
+        [write_vector2(doc, 'texcoord', texcoord.uv) for texcoord in texcoord_set]
+        doc.end_tag('vertex')
+
+    doc.end_tag('vertexbuffer')
+    doc.end_tag('geometry')
+
+    doc.start_tag('faces', {})
+    [write_face(doc, face) for face in faces]
+    doc.end_tag('faces')
+
+def write_submeshes(doc, objs):
+
+    copies = [obj.copy() for obj in objs]
+    meshes = [to_mesh(x) for x in objs]
+    meshes = [triangulate(x) for x in meshes]
+
+    structs = [BlenderToOgreData(obj, mesh) for mesh, obj in zip(meshes, objs)]
+
+    doc.start_tag('submeshes', {})
+    for struct in structs:
+
+        doc.start_tag('submesh', {
+            'operationtype': 'triangle_list',
+            'usesharedvertices': 'false'
+        })
+        write_geometry(doc, struct)
+
+        doc.start_tag('boneassignments', {})
+        [write_bone_assignment(doc, i, x) for i, x in enumerate(struct.vertex_bone_assignments)]
+        doc.end_tag('boneassignments')
+
+
+        doc.end_tag('submesh')
+
+    doc.end_tag('submeshes')
+
+    for struct in structs:
+        doc.leaf_tag('skeletonlink', {
+            'name': f'{struct.obj.data.name}.skeleton'
+        })
+
+    doc.close()
+
+def to_mesh(obj):
+    depsgraph = bpy.context.view_layer.depsgraph
+    depsgraph.update()
+    eval_obj = obj.evaluated_get(depsgraph)
+
+    return eval_obj.to_mesh(
+        preserve_all_data_layers=True,
+        depsgraph=depsgraph
+    )
+
+def remove_modifiers(obj):
+    if obj.modifiers:
+        rem = []
+        # Remove armature and array modifiers before collaspe
+        for mod in obj.modifiers:
+            if mod.type in 'ARMATURE ARRAY'.split():
+                rem.append( mod )
+        for mod in rem:
+            obj.modifiers.remove( mod )
+
+    return obj
+
+def triangulate(mesh):
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    bmesh.ops.triangulate(bm, faces=bm.faces)
+
+    for vert in bm.verts:
+        swap_axes(vert)
+
+    bm.to_mesh(mesh)
+    bm.free()
+    mesh.update()
+    return mesh
+
+def swap_axes(vertex):
+    vertex.co.x, vertex.co.y, vertex.co.z = vertex.co.x, vertex.co.z, -vertex.co.y
+    return vertex
+
+def dot_mesh_xml(objs, path, cliargs):
+    """
+    export the vertices of an object into a .mesh file
+
+    ob: the blender object
+    path: the path to save the .mesh file to. path MUST exist
+    """
+    obj_name = cliargs['--outname'] or objs[0].name
+    target_file = path #os.path.join(path, '%s.mesh.xml' % obj_name )
+
+    # if os.path.isfile(target_file) and not overwrite:
+    #     return []
+
+    # if not os.path.isdir( path ):
+    #     os.makedirs( path )
+
+    start = time.time()
+
+    with open(target_file, 'w') as f:
+        doc = SimpleSaxWriter(f, 'mesh', {})
+
+        write_submeshes(doc, list(objs))
+
+    return [target_file]
+
 
 
 def dot_mesh( ob, path, force_name=None, ignore_shape_animation=False, normals=True, tangents=4, isLOD=False, **kwargs):

@@ -4,7 +4,7 @@ from .. import config
 from ..report import Report
 from ..xml import RDocument
 from .. import util
-from os.path import join
+from os.path import join, dirname
 
 def dot_skeleton(obj, path, **kwargs):
     """
@@ -25,15 +25,14 @@ def dot_skeleton(obj, path, **kwargs):
         skel = Skeleton( obj )
         name = kwargs.get('force_name') or obj.data.name
         name = util.clean_object_name(name)
-        xmlfile = join(path, '%s.skeleton.xml' % name)
+        pathdir = dirname(path)
+        xmlfile = join(pathdir, '%s.skeleton.xml' % name)
         with open(xmlfile, 'wb') as fd:
             fd.write( bytes(skel.to_xml(),'utf-8') )
 
-        if kwargs.get('invoke_xml_converter', True):
-            util.xml_convert( xmlfile )
-        return name + '.skeleton'
+        return [f'{pathdir}/{name}.skeleton.xml']
 
-    return None
+    return []
 
 class Bone(object):
 
