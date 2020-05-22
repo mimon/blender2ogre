@@ -48,10 +48,6 @@ if __name__ == "__main__":
     dir = os.path.dirname(os.path.realpath(__file__))
     path = cliargs['--outdir'] if cliargs['--outdir'] else dir 
     name = cliargs['--outname'] if cliargs['--outname'] else None
-<<<<<<< HEAD
-    path = cliargs['<outfile>']
-||||||| merged common ancestors
-=======
     path = cliargs['<outfile>'] or cliargs['<outdir>']
     blendfile = cliargs['<blendfile>']
 
@@ -60,7 +56,6 @@ if __name__ == "__main__":
     log.debug(cliargs)
 
     files_written = []
->>>>>>> ogre2-mesh
 
     objs = [x for x in bpy.context.scene.objects if x.type == 'MESH']
     if cliargs['--collection']:
