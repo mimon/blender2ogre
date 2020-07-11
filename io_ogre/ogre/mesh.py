@@ -113,6 +113,8 @@ class BlenderToOgreData:
 
         self.vertex_bone_assignments = vertex_bone_assignments
 
+        self.materials = obj.data.materials
+
 def write_vector3(doc, name, vec3):
     x, y, z = vec3
     doc.leaf_tag(name, {
@@ -206,10 +208,15 @@ def write_submeshes(doc, objs):
     doc.start_tag('submeshes', {})
     for struct in structs:
 
-        doc.start_tag('submesh', {
+        attrs = {
             'operationtype': 'triangle_list',
-            'usesharedvertices': 'false'
-        })
+            'usesharedvertices': 'false',
+        }
+
+        if len(struct.materials) > 0:
+            attrs['material'] = struct.materials[0].name
+
+        doc.start_tag('submesh', attrs)
         write_geometry(doc, struct)
 
         doc.start_tag('boneassignments', {})
