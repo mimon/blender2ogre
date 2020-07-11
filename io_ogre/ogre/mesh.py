@@ -52,9 +52,25 @@ class VertexColorLookup:
 def flatten(array):
     return [x for sublist in array for x in sublist]
 
+# Struct that converts from Blender's polygon data
+# format to a structure that is more appropriate
+# for Ogre's XML format
 class BlenderToOgreData:
     def __init__(self, obj, mesh):
+        # TODO: Check if UV is available. Otherwise
+        # skip tangents
         mesh.calc_tangents()
+
+        # Quick and dirty conversion: unwrap all
+        # vertices in each triangle. Even though a Blender
+        # vertex participates in multiple triangles, the vertex
+        # will be duplicated as necessary. A more optmized implementation
+        # would reduce the vertex count to all the unique
+        #   (vertex coord, tangent vector, normal vector)
+        # tuples and export only them.
+        #
+        # A Blender vertex can have multple tangents depending
+        # on which face the vertex participates in.
         normals = [x.normal for x in mesh.vertices]
         texcoord_sets = [x.data for x in mesh.uv_layers]
 
@@ -147,21 +163,6 @@ def write_bone_assignment(doc, vertex_index, boneassignments):
         })
 
 def write_geometry(doc, struct):
-    # mesh.calc_tangents()
-    # coords = [x.co for x in mesh.vertices]
-    # normals = [x.normal for x in mesh.vertices]
-    # texcoord_sets = [x.data for x in mesh.uv_layers]
-
-    # polys = [x.loop_indices for x in mesh.polygons]
-    # vert_indexs = [mesh.loops[x].vertex_index for sublist in polys for x in sublist]
-    # normals = [mesh.vertices[mesh.loops[x].vertex_index].normal for sublist in polys for x in sublist]
-    # tangents = [mesh.loops[x].tangent for sublist in polys for x in sublist]
-    # verts = [mesh.vertices[x] for x in vert_indexs]
-    # coords = [x.co for x in verts]
-    # texcoord_sets = [layer.data[x] for x in vert_indexs for layer in mesh.uv_layers]
-    # faces = [(i, i+1, i+2) for i in range(0, len(coords), 3)]
-
-
     coords = struct.coords
     normals = struct.normals
     texcoord_sets = struct.texcoord_sets
@@ -257,6 +258,11 @@ def remove_modifiers(obj):
     return obj
 
 def triangulate(mesh):
+    """
+    Blender doesn't necessarly have polygons as triangles.
+    Since Ogre supports triangles only we need to make sure
+    all polygons are triangles.
+    """
     bm = bmesh.new()
     bm.from_mesh(mesh)
     bmesh.ops.triangulate(bm, faces=bm.faces)
@@ -270,24 +276,17 @@ def triangulate(mesh):
     return mesh
 
 def swap_axes(vertex):
+    """
+    Blender and Ogre have different axes
+    """
     vertex.co.x, vertex.co.y, vertex.co.z = vertex.co.x, vertex.co.z, -vertex.co.y
     return vertex
 
-def dot_mesh_xml(objs, path, cliargs):
+def dot_mesh_xml(objs, target_file, cliargs):
     """
-    export the vertices of an object into a .mesh file
-
-    ob: the blender object
-    path: the path to save the .mesh file to. path MUST exist
+    Export the vertices of an object into a .mesh.xml file
     """
     obj_name = cliargs['--outname'] or objs[0].name
-    target_file = path #os.path.join(path, '%s.mesh.xml' % obj_name )
-
-    # if os.path.isfile(target_file) and not overwrite:
-    #     return []
-
-    # if not os.path.isdir( path ):
-    #     os.makedirs( path )
 
     start = time.time()
 
