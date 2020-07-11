@@ -55,7 +55,6 @@ def flatten(array):
 class BlenderToOgreData:
     def __init__(self, obj, mesh):
         mesh.calc_tangents()
-        coords = [x.co for x in mesh.vertices]
         normals = [x.normal for x in mesh.vertices]
         texcoord_sets = [x.data for x in mesh.uv_layers]
 
@@ -65,7 +64,7 @@ class BlenderToOgreData:
         tangents = [mesh.loops[x].tangent for sublist in polys for x in sublist]
         verts = [mesh.vertices[x] for x in vert_indexs]
         coords = [x.co for x in verts]
-        texcoord_sets = [layer.data[x] for x in vert_indexs for layer in mesh.uv_layers]
+        texcoord_sets = [layer.data[x] for sublist in polys for x in sublist for layer in mesh.uv_layers]
         faces = [(i, i+1, i+2) for i in range(0, len(coords), 3)]
 
 
@@ -123,11 +122,11 @@ def write_vector3(doc, name, vec3):
             'z' : '%6f' % z
     })
 
-def write_vector2(doc, name, vec2):
+def write_uv(doc, name, vec2):
     u, v = vec2
     doc.leaf_tag(name, {
             'u' : '%6f' % u,
-            'v' : '%6f' % v,
+            'v' : '%6f' % (1.0 - v) ,
     })
 
 def write_face(doc, face):
@@ -187,7 +186,7 @@ def write_geometry(doc, struct):
         write_vector3(doc, 'position', coord)
         write_vector3(doc, 'normal', normal)
         write_vector3(doc, 'tangent', tangent)
-        [write_vector2(doc, 'texcoord', texcoord.uv) for texcoord in texcoord_set]
+        [write_uv(doc, 'texcoord', texcoord.uv) for texcoord in texcoord_set]
         doc.end_tag('vertex')
 
     doc.end_tag('vertexbuffer')
